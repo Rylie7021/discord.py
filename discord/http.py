@@ -110,7 +110,7 @@ class HTTPClient:
         method = route.method
         url = route.url
         channel = route.channel
-        guild = route.guild_id
+        guild_id = route.guild_id
 
         lock = self._locks.get(bucket)
         if lock is None:
