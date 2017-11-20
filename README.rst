@@ -6,6 +6,8 @@ discord.py
 .. image:: https://img.shields.io/pypi/pyversions/discord.py.svg
    :target: https://pypi.python.org/pypi/discord.py
 
+**This is a modified version that changes some headers. Only install if you know what's going on**
+
 discord.py is an API wrapper for Discord written in Python.
 
 This was written to allow easier writing of bots or chat logs. Make sure to familiarise yourself with the API using the `documentation <http://discordpy.rtfd.org/en/latest>`__.
