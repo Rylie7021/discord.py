@@ -50,7 +50,7 @@ class Typing:
         typing = channel._state.http.send_typing
 
         while True:
-            yield from typing(channel.id)
+            yield from typing(channel)
             yield from asyncio.sleep(5)
 
     def __enter__(self):
@@ -64,7 +64,7 @@ class Typing:
     @asyncio.coroutine
     def __aenter__(self):
         self._channel = channel = yield from self.messageable._get_channel()
-        yield from channel._state.http.send_typing(channel.id)
+        yield from channel._state.http.send_typing(channel)
         return self.__enter__()
 
     @asyncio.coroutine

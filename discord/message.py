@@ -353,7 +353,7 @@ class Message:
         """
 
         transformations = {
-            re.escape('<#%s>' % channel.id): '#' + channel.name
+            re.escape('<#%s>' % channel): '#' + channel.name
             for channel in self.channel_mentions
         }
 
@@ -509,7 +509,7 @@ class Message:
         HTTPException
             Deleting the message failed.
         """
-        yield from self._state.http.delete_message(self.channel.id, self.id)
+        yield from self._state.http.delete_message(self.channel, self.id)
 
     @asyncio.coroutine
     def edit(self, **fields):
@@ -554,7 +554,7 @@ class Message:
             if embed is not None:
                 fields['embed'] = embed.to_dict()
 
-        data = yield from self._state.http.edit_message(self.id, self.channel.id, **fields)
+        data = yield from self._state.http.edit_message(self.id, self.channel, **fields)
         self._update(channel=self.channel, data=data)
 
         try:
@@ -567,7 +567,7 @@ class Message:
                 def delete():
                     yield from asyncio.sleep(delete_after, loop=self._state.loop)
                     try:
-                        yield from self._state.http.delete_message(self.channel.id, self.id)
+                        yield from self._state.http.delete_message(self.channel, self.id)
                     except:
                         pass
 
@@ -591,7 +591,7 @@ class Message:
             having more than 50 pinned messages.
         """
 
-        yield from self._state.http.pin_message(self.channel.id, self.id)
+        yield from self._state.http.pin_message(self.channel, self.id)
         self.pinned = True
 
     @asyncio.coroutine
@@ -611,7 +611,7 @@ class Message:
             Unpinning the message failed.
         """
 
-        yield from self._state.http.unpin_message(self.channel.id, self.id)
+        yield from self._state.http.unpin_message(self.channel, self.id)
         self.pinned = False
 
     @asyncio.coroutine
@@ -654,7 +654,7 @@ class Message:
         else:
             raise InvalidArgument('emoji argument must be str, Emoji, or Reaction not {.__class__.__name__}.'.format(emoji))
 
-        yield from self._state.http.add_reaction(self.id, self.channel.id, emoji)
+        yield from self._state.http.add_reaction(self.id, self.channel, emoji)
 
     @asyncio.coroutine
     def remove_reaction(self, emoji, member):
@@ -701,7 +701,7 @@ class Message:
         else:
             raise InvalidArgument('emoji argument must be str, Emoji, or Reaction not {.__class__.__name__}.'.format(emoji))
 
-        yield from self._state.http.remove_reaction(self.id, self.channel.id, emoji, member.id)
+        yield from self._state.http.remove_reaction(self.id, self.channel, emoji, member.id)
 
     @asyncio.coroutine
     def clear_reactions(self):
@@ -719,7 +719,7 @@ class Message:
         Forbidden
             You do not have the proper permissions to remove all the reactions.
         """
-        yield from self._state.http.clear_reactions(self.id, self.channel.id)
+        yield from self._state.http.clear_reactions(self.id, self.channel)
 
     def ack(self):
         """|coro|
@@ -739,4 +739,4 @@ class Message:
         state = self._state
         if state.is_bot:
             raise ClientException('Must not be a bot account to ack messages.')
-        return state.http.ack_message(self.channel.id, self.id)
+        return state.http.ack_message(self.channel, self.id)

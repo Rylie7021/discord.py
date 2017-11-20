@@ -744,7 +744,7 @@ class Messageable(metaclass=abc.ABCMeta):
                 raise InvalidArgument('file parameter must be File')
 
             try:
-                data = yield from state.http.send_files(channel.id, files=[(file.open_file(), file.filename)],
+                data = yield from state.http.send_files(channel, files=[(file.open_file(), file.filename)],
                                                         content=content, tts=tts, embed=embed, nonce=nonce)
             finally:
                 file.close()
@@ -755,13 +755,13 @@ class Messageable(metaclass=abc.ABCMeta):
 
             try:
                 param = [(f.open_file(), f.filename) for f in files]
-                data = yield from state.http.send_files(channel.id, files=param, content=content, tts=tts,
+                data = yield from state.http.send_files(channel, files=param, content=content, tts=tts,
                                                         embed=embed, nonce=nonce)
             finally:
                 for f in files:
                     f.close()
         else:
-            data = yield from state.http.send_message(channel.id, content, tts=tts, embed=embed, nonce=nonce)
+            data = yield from state.http.send_message(channel, content, tts=tts, embed=embed, nonce=nonce)
 
         ret = state.create_message(channel=channel, data=data)
         if delete_after is not None:
@@ -785,7 +785,7 @@ class Messageable(metaclass=abc.ABCMeta):
         """
 
         channel = yield from self._get_channel()
-        yield from self._state.http.send_typing(channel.id)
+        yield from self._state.http.send_typing(channel)
 
     def typing(self):
         """Returns a context manager that allows you to type for an indefinite period of time.
@@ -835,7 +835,7 @@ class Messageable(metaclass=abc.ABCMeta):
         """
 
         channel = yield from self._get_channel()
-        data = yield from self._state.http.get_message(channel.id, id)
+        data = yield from self._state.http.get_message(channel, id)
         return self._state.create_message(channel=channel, data=data)
 
     @asyncio.coroutine
@@ -852,7 +852,7 @@ class Messageable(metaclass=abc.ABCMeta):
 
         channel = yield from self._get_channel()
         state = self._state
-        data = yield from state.http.pins_from(channel.id)
+        data = yield from state.http.pins_from(channel)
         return [state.create_message(channel=channel, data=m) for m in data]
 
     def history(self, *, limit=100, before=None, after=None, around=None, reverse=None):

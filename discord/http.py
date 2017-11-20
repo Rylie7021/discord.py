@@ -52,12 +52,17 @@ class Route:
         self.path = path
         self.method = method
         url = (self.BASE + self.path)
+        try:
+            parameters['channel_id'] = parameters.get('channel').id
+        except:
+            pass
         if parameters:
             self.url = url.format(**{k: _uriquote(v) if isinstance(v, str) else v for k, v in parameters.items()})
         else:
             self.url = url
 
         # major parameters:
+        self.channel = parameters.get('channel')
         self.channel_id = parameters.get('channel_id')
         self.guild_id = parameters.get('guild_id')
 
@@ -99,14 +104,12 @@ class HTTPClient:
         self.proxy = proxy
         self.proxy_auth = proxy_auth
 
-        user_agent = 'DiscordBot (https://github.com/Rapptz/discord.py {0}) Python/{1[0]}.{1[1]} aiohttp/{2}'
-        self.user_agent = user_agent.format(__version__, sys.version_info, aiohttp.__version__)
-
     @asyncio.coroutine
     def request(self, route, *, header_bypass_delay=None, **kwargs):
         bucket = route.bucket
         method = route.method
         url = route.url
+        channel = route.channel
 
         lock = self._locks.get(bucket)
         if lock is None:
@@ -115,9 +118,25 @@ class HTTPClient:
                 self._locks[bucket] = lock
 
         # header creation
-        headers = {
-            'User-Agent': self.user_agent,
-        }
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.179 Chrome/58.0.3029.110 Discord Canary/1.7.9 Safari/537.36',
+                'referer': f'https://canary.discordapp.com/channels/{channel.guild.id}/{channel.id}',
+                'x-super-properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCBDbGllbnQiLCJyZWxlYXNlX2NoYW5uZWwiOiJjYW5hcnkiLCJjbGllbnRfdmVyc2lvbiI6IjAuMC4xNzkiLCJvc192ZXJzaW9uIjoiMTAuMC4xNTA2MyJ9'
+                }
+        except:
+            try:
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.179 Chrome/58.0.3029.110 Discord Canary/1.7.9 Safari/537.36',
+                    'referer': f'https://canary.discordapp.com/channels/{guild.id}',
+                    'x-super-properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCBDbGllbnQiLCJyZWxlYXNlX2NoYW5uZWwiOiJjYW5hcnkiLCJjbGllbnRfdmVyc2lvbiI6IjAuMC4xNzkiLCJvc192ZXJzaW9uIjoiMTAuMC4xNTA2MyJ9'
+                }
+            except:
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.179 Chrome/58.0.3029.110 Discord Canary/1.7.9 Safari/537.36',
+                    'referer': f'https://canary.discordapp.com/channels/@me',
+                    'x-super-properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCBDbGllbnQiLCJyZWxlYXNlX2NoYW5uZWwiOiJjYW5hcnkiLCJjbGllbnRfdmVyc2lvbiI6IjAuMC4xNzkiLCJvc192ZXJzaW9uIjoiMTAuMC4xNTA2MyJ9'
+                }
 
         if self.token is not None:
             headers['Authorization'] = 'Bot ' + self.token if self.bot_token else self.token
@@ -270,27 +289,27 @@ class HTTPClient:
 
         return self.request(Route('POST', '/users/{user_id}/channels', user_id=user_id), json=payload)
 
-    def leave_group(self, channel_id):
-        return self.request(Route('DELETE', '/channels/{channel_id}', channel_id=channel_id))
+    def leave_group(self, channel):
+        return self.request(Route('DELETE', '/channels/{channel.id}', channel=channel))
 
-    def add_group_recipient(self, channel_id, user_id):
-        r = Route('PUT', '/channels/{channel_id}/recipients/{user_id}', channel_id=channel_id, user_id=user_id)
+    def add_group_recipient(self, channel, user_id):
+        r = Route('PUT', '/channels/{channel.id}/recipients/{user_id}', channel=channel, user_id=user_id)
         return self.request(r)
 
-    def remove_group_recipient(self, channel_id, user_id):
-        r = Route('DELETE', '/channels/{channel_id}/recipients/{user_id}', channel_id=channel_id, user_id=user_id)
+    def remove_group_recipient(self, channel, user_id):
+        r = Route('DELETE', '/channels/{channel.id}/recipients/{user_id}', channel=channel, user_id=user_id)
         return self.request(r)
 
-    def edit_group(self, channel_id, **options):
+    def edit_group(self, channel, **options):
         valid_keys = ('name', 'icon')
         payload = {
             k: v for k, v in options.items() if k in valid_keys
         }
 
-        return self.request(Route('PATCH', '/channels/{channel_id}', channel_id=channel_id), json=payload)
+        return self.request(Route('PATCH', '/channels/{channel.id}', channel=channel), json=payload)
 
-    def convert_group(self, channel_id):
-        return self.request(Route('POST', '/channels/{channel_id}/convert', channel_id=channel_id))
+    def convert_group(self, channel):
+        return self.request(Route('POST', '/channels/{channel.id}/convert', channel=channel))
 
     # Message management
 
@@ -301,8 +320,8 @@ class HTTPClient:
 
         return self.request(Route('POST', '/users/@me/channels'), json=payload)
 
-    def send_message(self, channel_id, content, *, tts=False, embed=None, nonce=None):
-        r = Route('POST', '/channels/{channel_id}/messages', channel_id=channel_id)
+    def send_message(self, channel, content, *, tts=False, embed=None, nonce=None):
+        r = Route('POST', '/channels/{channel.id}/messages', channel=channel)
         payload = {}
 
         if content:
@@ -319,11 +338,11 @@ class HTTPClient:
 
         return self.request(r, json=payload)
 
-    def send_typing(self, channel_id):
-        return self.request(Route('POST', '/channels/{channel_id}/typing', channel_id=channel_id))
+    def send_typing(self, channel):
+        return self.request(Route('POST', '/channels/{channel.id}/typing', channel=channel))
 
-    def send_files(self, channel_id, *, files, content=None, tts=False, embed=None, nonce=None):
-        r = Route('POST', '/channels/{channel_id}/messages', channel_id=channel_id)
+    def send_files(self, channel, *, files, content=None, tts=False, embed=None, nonce=None):
+        r = Route('POST', '/channels/{channel.id}/messages', channel=channel)
         form = aiohttp.FormData()
 
         payload = {'tts': tts}
@@ -345,8 +364,8 @@ class HTTPClient:
         return self.request(r, data=form)
 
     @asyncio.coroutine
-    def ack_message(self, channel_id, message_id):
-        r = Route('POST', '/channels/{channel_id}/messages/{message_id}/ack', channel_id=channel_id,
+    def ack_message(self, channel, message_id):
+        r = Route('POST', '/channels/{channel.id}/messages/{message_id}/ack', channel=channel,
                                                                           message_id=message_id)
         data = yield from self.request(r, json={'token': self._ack_token})
         self._ack_token = data['token']
@@ -354,54 +373,54 @@ class HTTPClient:
     def ack_guild(self, guild_id):
         return self.request(Route('POST', '/guilds/{guild_id}/ack', guild_id=guild_id))
 
-    def delete_message(self, channel_id, message_id, *, reason=None):
-        r = Route('DELETE', '/channels/{channel_id}/messages/{message_id}', channel_id=channel_id,
+    def delete_message(self, channel, message_id, *, reason=None):
+        r = Route('DELETE', '/channels/{channel.id}/messages/{message_id}', channel=channel,
                                                                             message_id=message_id)
         return self.request(r, reason=reason)
 
-    def delete_messages(self, channel_id, message_ids, *, reason=None):
-        r = Route('POST', '/channels/{channel_id}/messages/bulk_delete', channel_id=channel_id)
+    def delete_messages(self, channel, message_ids, *, reason=None):
+        r = Route('POST', '/channels/{channel.id}/messages/bulk_delete', channel=channel)
         payload = {
             'messages': message_ids
         }
 
         return self.request(r, json=payload, reason=reason)
 
-    def edit_message(self, message_id, channel_id, **fields):
-        r = Route('PATCH', '/channels/{channel_id}/messages/{message_id}', channel_id=channel_id,
+    def edit_message(self, message_id, channel, **fields):
+        r = Route('PATCH', '/channels/{channel.id}/messages/{message_id}', channel=channel,
                                                                            message_id=message_id)
         return self.request(r, json=fields)
 
-    def add_reaction(self, message_id, channel_id, emoji):
-        r = Route('PUT', '/channels/{channel_id}/messages/{message_id}/reactions/{emoji}/@me',
-                  channel_id=channel_id, message_id=message_id, emoji=emoji)
+    def add_reaction(self, message_id, channel, emoji):
+        r = Route('PUT', '/channels/{channel.id}/messages/{message_id}/reactions/{emoji}/@me',
+                  channel=channel, message_id=message_id, emoji=emoji)
         return self.request(r, header_bypass_delay=0.25)
 
-    def remove_reaction(self, message_id, channel_id, emoji, member_id):
-        r = Route('DELETE', '/channels/{channel_id}/messages/{message_id}/reactions/{emoji}/{member_id}',
-                  channel_id=channel_id, message_id=message_id, member_id=member_id, emoji=emoji)
+    def remove_reaction(self, message_id, channel, emoji, member_id):
+        r = Route('DELETE', '/channels/{channel.id}/messages/{message_id}/reactions/{emoji}/{member_id}',
+                  channel=channel, message_id=message_id, member_id=member_id, emoji=emoji)
         return self.request(r, header_bypass_delay=0.25)
 
-    def get_reaction_users(self, message_id, channel_id, emoji, limit, after=None):
-        r = Route('GET', '/channels/{channel_id}/messages/{message_id}/reactions/{emoji}',
-                         channel_id=channel_id, message_id=message_id, emoji=emoji)
+    def get_reaction_users(self, message_id, channel, emoji, limit, after=None):
+        r = Route('GET', '/channels/{channel.id}/messages/{message_id}/reactions/{emoji}',
+                         channel=channel, message_id=message_id, emoji=emoji)
 
         params = {'limit': limit}
         if after:
             params['after'] = after
         return self.request(r, params=params)
 
-    def clear_reactions(self, message_id, channel_id):
-        r = Route('DELETE', '/channels/{channel_id}/messages/{message_id}/reactions',
-                  channel_id=channel_id, message_id=message_id)
+    def clear_reactions(self, message_id, channel):
+        r = Route('DELETE', '/channels/{channel.id}/messages/{message_id}/reactions',
+                  channel=channel, message_id=message_id)
 
         return self.request(r)
 
-    def get_message(self, channel_id, message_id):
-        r = Route('GET', '/channels/{channel_id}/messages/{message_id}', channel_id=channel_id, message_id=message_id)
+    def get_message(self, channel, message_id):
+        r = Route('GET', '/channels/{channel.id}/messages/{message_id}', channel=channel, message_id=message_id)
         return self.request(r)
 
-    def logs_from(self, channel_id, limit, before=None, after=None, around=None):
+    def logs_from(self, channel, limit, before=None, after=None, around=None):
         params = {
             'limit': limit
         }
@@ -413,18 +432,18 @@ class HTTPClient:
         if around:
             params['around'] = around
 
-        return self.request(Route('GET', '/channels/{channel_id}/messages', channel_id=channel_id), params=params)
+        return self.request(Route('GET', '/channels/{channel.id}/messages', channel=channel), params=params)
 
-    def pin_message(self, channel_id, message_id):
-        return self.request(Route('PUT', '/channels/{channel_id}/pins/{message_id}',
-                            channel_id=channel_id, message_id=message_id))
+    def pin_message(self, channel, message_id):
+        return self.request(Route('PUT', '/channels/{channel.id}/pins/{message_id}',
+                            channel=channel, message_id=message_id))
 
-    def unpin_message(self, channel_id, message_id):
-        return self.request(Route('DELETE', '/channels/{channel_id}/pins/{message_id}',
-                            channel_id=channel_id, message_id=message_id))
+    def unpin_message(self, channel, message_id):
+        return self.request(Route('DELETE', '/channels/{channel.id}/pins/{message_id}',
+                            channel=channel, message_id=message_id))
 
-    def pins_from(self, channel_id):
-        return self.request(Route('GET', '/channels/{channel_id}/pins', channel_id=channel_id))
+    def pins_from(self, channel):
+        return self.request(Route('GET', '/channels/{channel.id}/pins', channel=channel))
 
     # Member management
 
@@ -498,8 +517,8 @@ class HTTPClient:
 
     # Channel management
 
-    def edit_channel(self, channel_id, *, reason=None, **options):
-        r = Route('PATCH', '/channels/{channel_id}', channel_id=channel_id)
+    def edit_channel(self, channel, *, reason=None, **options):
+        r = Route('PATCH', '/channels/{channel.id}', channel=channel)
         valid_keys = ('name', 'parent_id', 'topic', 'bitrate', 'nsfw', 'user_limit', 'position', 'permission_overwrites')
         payload = {
             k: v for k, v in options.items() if k in valid_keys
@@ -525,22 +544,22 @@ class HTTPClient:
 
         return self.request(Route('POST', '/guilds/{guild_id}/channels', guild_id=guild_id), json=payload, reason=reason)
 
-    def delete_channel(self, channel_id, *, reason=None):
-        return self.request(Route('DELETE', '/channels/{channel_id}', channel_id=channel_id), reason=reason)
+    def delete_channel(self, channel, *, reason=None):
+        return self.request(Route('DELETE', '/channels/{channel.id}', channel=channel), reason=reason)
 
     # Webhook management
 
-    def create_webhook(self, channel_id, *, name=None, avatar=None):
+    def create_webhook(self, channel, *, name=None, avatar=None):
         payload = {}
         if name is not None:
             payload['name'] = name
         if avatar is not None:
             payload['avatar'] = avatar
 
-        return self.request(Route('POST', '/channels/{channel_id}/webhooks', channel_id=channel_id), json=payload)
+        return self.request(Route('POST', '/channels/{channel.id}/webhooks', channel=channel), json=payload)
 
-    def channel_webhooks(self, channel_id):
-        return self.request(Route('GET', '/channels/{channel_id}/webhooks', channel_id=channel_id))
+    def channel_webhooks(self, channel):
+        return self.request(Route('GET', '/channels/{channel.id}/webhooks', channel=channel))
 
     def guild_webhooks(self, guild_id):
         return self.request(Route('GET', '/guilds/{guild_id}/webhooks', guild_id=guild_id))
@@ -634,8 +653,8 @@ class HTTPClient:
 
     # Invite management
 
-    def create_invite(self, channel_id, *, reason=None, **options):
-        r = Route('POST', '/channels/{channel_id}/invites', channel_id=channel_id)
+    def create_invite(self, channel, *, reason=None, **options):
+        r = Route('POST', '/channels/{channel.id}/invites', channel=channel)
         payload = {
             'max_age': options.get('max_age', 0),
             'max_uses': options.get('max_uses', 0),
@@ -651,8 +670,8 @@ class HTTPClient:
     def invites_from(self, guild_id):
         return self.request(Route('GET', '/guilds/{guild_id}/invites', guild_id=guild_id))
 
-    def invites_from_channel(self, channel_id):
-        return self.request(Route('GET', '/channels/{channel_id}/invites', channel_id=channel_id))
+    def invites_from_channel(self, channel):
+        return self.request(Route('GET', '/channels/{channel.id}/invites', channel=channel))
 
     def delete_invite(self, invite_id, *, reason=None):
         return self.request(Route('DELETE', '/invite/{invite_id}', invite_id=invite_id), reason=reason)
@@ -692,24 +711,24 @@ class HTTPClient:
                   guild_id=guild_id, user_id=user_id, role_id=role_id)
         return self.request(r, reason=reason)
 
-    def edit_channel_permissions(self, channel_id, target, allow, deny, type, *, reason=None):
+    def edit_channel_permissions(self, channel, target, allow, deny, type, *, reason=None):
         payload = {
             'id': target,
             'allow': allow,
             'deny': deny,
             'type': type
         }
-        r = Route('PUT', '/channels/{channel_id}/permissions/{target}', channel_id=channel_id, target=target)
+        r = Route('PUT', '/channels/{channel.id}/permissions/{target}', channel=channel, target=target)
         return self.request(r, json=payload, reason=reason)
 
-    def delete_channel_permissions(self, channel_id, target, *, reason=None):
-        r = Route('DELETE', '/channels/{channel_id}/permissions/{target}', channel_id=channel_id, target=target)
+    def delete_channel_permissions(self, channel, target, *, reason=None):
+        r = Route('DELETE', '/channels/{channel.id}/permissions/{target}', channel=channel, target=target)
         return self.request(r, reason=reason)
 
     # Voice management
 
-    def move_member(self, user_id, guild_id, channel_id, *, reason=None):
-        return self.edit_member(guild_id=guild_id, user_id=user_id, channel_id=channel_id, reason=reason)
+    def move_member(self, user_id, guild_id, channel, *, reason=None):
+        return self.edit_member(guild_id=guild_id, user_id=user_id, channel=channel, reason=reason)
 
     # Relationship related
 
