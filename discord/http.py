@@ -110,6 +110,7 @@ class HTTPClient:
         method = route.method
         url = route.url
         channel = route.channel
+        guild = route.guild_id
 
         lock = self._locks.get(bucket)
         if lock is None:
@@ -119,24 +120,17 @@ class HTTPClient:
 
         # header creation
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.179 Chrome/58.0.3029.110 Discord Canary/1.7.9 Safari/537.36',
-                'referer': f'https://canary.discordapp.com/channels/{channel.guild.id}/{channel.id}',
-                'x-super-properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCBDbGllbnQiLCJyZWxlYXNlX2NoYW5uZWwiOiJjYW5hcnkiLCJjbGllbnRfdmVyc2lvbiI6IjAuMC4xNzkiLCJvc192ZXJzaW9uIjoiMTAuMC4xNTA2MyJ9'
-                }
+            ref = f'https://canary.discordapp.com/channels/{channel.guild.id}/{channel.id}'
         except:
             try:
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.179 Chrome/58.0.3029.110 Discord Canary/1.7.9 Safari/537.36',
-                    'referer': f'https://canary.discordapp.com/channels/{guild.id}',
-                    'x-super-properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCBDbGllbnQiLCJyZWxlYXNlX2NoYW5uZWwiOiJjYW5hcnkiLCJjbGllbnRfdmVyc2lvbiI6IjAuMC4xNzkiLCJvc192ZXJzaW9uIjoiMTAuMC4xNTA2MyJ9'
-                }
+                ref = f'https://canary.discordapp.com/channels/{guild_id}'
             except:
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.179 Chrome/58.0.3029.110 Discord Canary/1.7.9 Safari/537.36',
-                    'referer': f'https://canary.discordapp.com/channels/@me',
-                    'x-super-properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCBDbGllbnQiLCJyZWxlYXNlX2NoYW5uZWwiOiJjYW5hcnkiLCJjbGllbnRfdmVyc2lvbiI6IjAuMC4xNzkiLCJvc192ZXJzaW9uIjoiMTAuMC4xNTA2MyJ9'
-                }
+                ref = 'https://canary.discordapp.com/channels/@me'
+        headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/0.0.179 Chrome/58.0.3029.110 Discord Canary/1.7.9 Safari/537.36',
+        'referer': ref,
+        'x-super-properties': 'eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCBDbGllbnQiLCJyZWxlYXNlX2NoYW5uZWwiOiJjYW5hcnkiLCJjbGllbnRfdmVyc2lvbiI6IjAuMC4xNzkiLCJvc192ZXJzaW9uIjoiMTAuMC4xNTA2MyJ9'
+        }
 
         if self.token is not None:
             headers['Authorization'] = 'Bot ' + self.token if self.bot_token else self.token
